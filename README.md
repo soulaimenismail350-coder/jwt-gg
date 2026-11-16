@@ -31,3 +31,12 @@ The API is stateless: each request performs a new upstream login. Do not rely on
 - The original protobuf module is retained. Keep `MajorLogin_pb2.py` beside `main.py`.
 - Configure the three required secrets before testing. Do not publish them in source control.
 - The API returns the parsed protobuf response. Treat any returned authentication token as sensitive.
+
+
+## Browser GET (not recommended for real credentials)
+
+The endpoint also accepts GET:
+
+`https://YOUR-PROJECT.vercel.app/api/login?uid=YOUR_UID&password=YOUR_PASSWORD&key=YOUR_API_SECRET`
+
+**Security warning:** GET query parameters may be stored in browser history and server/proxy logs. Use POST with the `X-API-Key` header for real accounts.

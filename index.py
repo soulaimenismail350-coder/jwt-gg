@@ -13,24 +13,32 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "VINOX Login API",
-        "usage": "POST /api/login with JSON fields uid and password",
+        "usage": {
+            "GET": "/api/login?uid=...&password=...&key=...",
+            "POST": "/api/login with JSON fields uid and password",
+        },
     })
 
 
-@app.post("/api/login")
+@app.route("/api/login", methods=["GET", "POST"])
 def login():
-    # Configure API_SECRET in Vercel Project Settings > Environment Variables.
     expected_key = os.environ.get("API_SECRET")
     if not expected_key:
         return jsonify({"ok": False, "error": "Server API_SECRET is not configured."}), 503
 
-    supplied_key = request.headers.get("X-API-Key", "")
+    if request.method == "GET":
+        # WARNING: Query-string credentials and API keys can appear in browser
+        # history, server logs, analytics, and referrer data. Prefer POST.
+        data = request.args
+        supplied_key = data.get("key", "")
+    else:
+        data = request.get_json(silent=True)
+        supplied_key = request.headers.get("X-API-Key", "")
+        if not isinstance(data, dict):
+            return jsonify({"ok": False, "error": "Request body must be valid JSON."}), 400
+
     if not hmac.compare_digest(supplied_key, expected_key):
         return jsonify({"ok": False, "error": "Unauthorized"}), 401
-
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return jsonify({"ok": False, "error": "Request body must be valid JSON."}), 400
 
     uid = str(data.get("uid", "")).strip()
     password = str(data.get("password", "")).strip()
@@ -43,6 +51,5 @@ def login():
     except LoginServiceError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 502
     except Exception:
-        # Keep unexpected exception details out of public responses.
         app.logger.exception("Unhandled login API error")
         return jsonify({"ok": False, "error": "Internal server error."}), 500
